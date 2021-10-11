@@ -35,11 +35,11 @@ saidasTreinamento = arrSaidasDesejadas[0:tercoSaidas]
 saidasValid = arrSaidasDesejadas[tercoSaidas:2*tercoSaidas]
 saidasTeste = arrSaidasDesejadas[tercoSaidas*2:tercoSaidas*3]
 #parâmetros de controle
-indiceAprendizado = 0.1
+indiceAprendizado = 0.09
 nPrevisoesCorretas = 0
-epocas = 70
-alpha = 0.5
-tamanhoC_O=20
+epocas = 600
+alpha = .1
+tamanhoC_O=25
 tamanhoC_E=len(arrEntradas[0])
 tamanhoC_S=len(arrSaidasDesejadas[0])
 ultPrecTrei = 0
@@ -61,7 +61,7 @@ def forward_propagate(pesos,valores,biases):
     valoresPosAtivacao = sigmoide(somatoria)
     return valoresPosAtivacao
 
-for epoca in range(epocas):
+for i in range(epocas):
     #itera por cada linha e seu respectivo rótulo
     squaredErrors=list()
     for entradas, saidaCorreta in zip(entradasTreinamento, saidasTreinamento):
@@ -92,7 +92,7 @@ for epoca in range(epocas):
         biasesE_O += -indiceAprendizado * delta_h
     # Show accuracy for this epoch
     ultPrecTrei = round((nPrevisoesCorretas / entradasTreinamento.shape[0]) * 100, 2)
-    print(f"Precisão de treinamento: {ultPrecTrei}%")
+    print(f"Precisão de treinamento: {ultPrecTrei}% , com {600-(epocas-i)} épocas")
     nPrevisoesCorretas = 0
 
 #validacao
