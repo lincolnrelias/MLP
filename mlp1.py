@@ -1,12 +1,12 @@
 import numpy as np
-def FuncaoLogistica(x):
+def sigmoide(x):
     return 1/(1+np.exp(-x))
 
 def forward(entradas):
     inputsAtivados = entradas
     for linhaPesos in matrizPesos:
         netInputs = np.dot(inputsAtivados,linhaPesos)
-        inputsAtivados = FuncaoLogistica(netInputs)
+        inputsAtivados = sigmoide(netInputs)
     return inputsAtivados
 #carrega os dados
 dadosDigitos = open("optdigitsNorm.dat","r").read().splitlines()
@@ -27,6 +27,7 @@ conjuntoTeste = [listaDados[x] for x in range(tercoDosDados*2,tercoDosDados*3)]
 neuroniosCamadaOculta=5
 neuroniosSaida=10
 neuroniosInput=len(listaDados[0])
+indiceAprendizado=0.1
 matrizPesos = []
 matrizPesos.append(np.random.rand((neuroniosInput,neuroniosCamadaOculta)))
 matrizPesos.append(np.random.rand((neuroniosCamadaOculta,neuroniosSaida)))
