@@ -1,7 +1,9 @@
 from math import floor
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy.core.fromnumeric import mean
+from numpy.core.fromnumeric import argmax, mean
+import seaborn as sn
+import pandas as pd
 from random import shuffle
 
 
@@ -14,6 +16,7 @@ arrSaidasDesejadas = list()
 mseTrein =list()
 mseValid =list()
 mseTeste =list()
+#randomiza as posições da linhas dos dados
 shuffle(rawData)
 for line in rawData:
     splitLine = line.split(',')
@@ -34,21 +37,21 @@ entradasTeste = arrEntradas[tercoSaidas*2:tercoSaidas*3]
 saidasTreinamento = arrSaidasDesejadas[0:tercoSaidas]
 saidasValid = arrSaidasDesejadas[tercoSaidas:2*tercoSaidas]
 saidasTeste = arrSaidasDesejadas[tercoSaidas*2:tercoSaidas*3]
-#parâmetros de controle
+#hiperparâmetros
 indiceAprendizado = 0.09
-nPrevisoesCorretas = 0
-epocas = 600
+epocas = 0
 alpha = .1
-tamanhoC_O=25
+neuroniosCO=25
+#parâmetros de controle
 tamanhoC_E=len(arrEntradas[0])
 tamanhoC_S=len(arrSaidasDesejadas[0])
-ultPrecTrei = 0
-ultPrecValid = 0
-ultPrecTeste = 0
+ultAcuTrei = 0
+ultAcuValid = 0
+ultAcuTeste = 0
 #inicializacao das matrizes
-pesosE_O = np.random.uniform(-1, 1, (tamanhoC_O, tamanhoC_E))
-biasesE_O = np.zeros((tamanhoC_O, 1))
-pesosO_S = np.random.uniform(-1, 1, (tamanhoC_S, tamanhoC_O))
+pesosE_O = np.random.uniform(-1, 1, (neuroniosCO, tamanhoC_E))
+biasesE_O = np.zeros((neuroniosCO, 1))
+pesosO_S = np.random.uniform(-1, 1, (tamanhoC_S, neuroniosCO))
 biasesO_S = np.zeros((tamanhoC_S, 1))
 lastDeltaE_O = 0
 lastDeltaO_S = 0
@@ -61,12 +64,13 @@ def forward_propagate(pesos,valores,biases):
     valoresPosAtivacao = sigmoide(somatoria)
     return valoresPosAtivacao
 
-for i in range(epocas):
+def treinamento(pesosE_O,biasesE_O,lastDeltaE_O,pesosO_S,biasesO_S,lastDeltaO_S):
+    nPrevisoesCorretas=0
+    msErrors=list()
     #itera por cada linha e seu respectivo rótulo
-    squaredErrors=list()
     for entradas, saidaCorreta in zip(entradasTreinamento, saidasTreinamento):
-        #muda o tipo da var entrada de vetor de 5620 posições
-        #para uma matriz [64,1], para podermos aplicar operações com numpy
+        #muda o tipo da var entradas de vetor de 5620 posições
+        #para uma matriz [1,64], para podermos aplicar operações matriciais usando numpy
         entradas.shape += (1,)
         saidaCorreta.shape += (1,)
         # Forward propagation entrada -> oculta
@@ -75,7 +79,7 @@ for i in range(epocas):
         saidaObtida = forward_propagate(pesosO_S,pesosAtivados,biasesO_S)
         # Calculo do erro
         e = 1 / len(saidaObtida) * np.sum((saidaObtida - saidaCorreta) ** 2, axis=0)
-        mseTrein.append(e)
+        msErrors.append(e)
         #checa se previsto=obtido e adiciona ao contador de previsoes
         nPrevisoesCorretas += int(np.argmax(saidaObtida) == np.argmax(saidaCorreta))
 
@@ -91,28 +95,86 @@ for i in range(epocas):
         lastDeltaE_O = -indiceAprendizado * np.dot(delta_h,entradas.T)
         biasesE_O += -indiceAprendizado * delta_h
     # Show accuracy for this epoch
-    ultPrecTrei = round((nPrevisoesCorretas / entradasTreinamento.shape[0]) * 100, 2)
-    print(f"Precisão de treinamento: {ultPrecTrei}% , com {600-(epocas-i)} épocas")
-    nPrevisoesCorretas = 0
+    ultAcuTrei = round((nPrevisoesCorretas / entradasTreinamento.shape[0]) * 100, 2)
+    if epocas%10==0:
+        print(f"Acurácia de treinamento: {ultAcuTrei}% , com {epocas} épocas")
+    mseTrein.append(mean(msErrors))
+    return pesosE_O,biasesE_O,lastDeltaE_O,pesosO_S,biasesO_S,lastDeltaO_S
+    #validacao
+def validacao():    
+    nPrevisoesCorretas=0
+    msErrors=list()
+    for entradas, saidaCorreta in zip(entradasValid, saidasValid):
+        entradas.shape += (1,)
+        saidaCorreta.shape += (1,)
+        # Forward propagation entrada -> oculta
+        pesosAtivados = forward_propagate(pesosE_O,entradas,biasesE_O)
+        # Forward propagation oculta -> saida
+        saidaObtida = forward_propagate(pesosO_S,pesosAtivados,biasesO_S)
+        # Calculo do erro quadrático medio das entradas dessa iteração
+        e = 1 / len(saidaObtida) * np.sum((saidaObtida - saidaCorreta) ** 2, axis=0)
+        msErrors.append(e)
+        #checa se previsto=obtido e adiciona ao contador de previsoes
+        nPrevisoesCorretas += int(np.argmax(saidaObtida) == np.argmax(saidaCorreta))
+    ultAcuValid = round((nPrevisoesCorretas / entradasValid.shape[0]) * 100, 2)
+    mseValid.append(mean(msErrors))
+    if epocas%10==0:
+        print(f"Acurácia de validação: {ultAcuValid}%")
 
-#validacao
-for entradas, saidaCorreta in zip(entradasValid, saidasValid):
-    entradas.shape += (1,)
-    saidaCorreta.shape += (1,)
-    # Forward propagation entrada -> oculta
-    pesosAtivados = forward_propagate(pesosE_O,entradas,biasesE_O)
-    # Forward propagation oculta -> saida
-    saidaObtida = forward_propagate(pesosO_S,pesosAtivados,biasesO_S)
-        # Calculo do erro
-    e = 1 / len(saidaObtida) * np.sum((saidaObtida - saidaCorreta) ** 2, axis=0)
-    mseValid.append(e)
-    #checa se previsto=obtido e adiciona ao contador de previsoes
-    nPrevisoesCorretas += int(np.argmax(saidaObtida) == np.argmax(saidaCorreta))
-ultPrecValid = round((nPrevisoesCorretas / entradasValid.shape[0]) * 100, 2)
-print(f"Precisão de validação: {ultPrecValid}%")
+# A Simple Confusion Matrix Implementation
+def confusionmatrix(actual, predicted):
+    unique = sorted(set(actual))
+    matrix = [[0 for _ in unique] for _ in unique]
+    imap   = {key: i for i, key in enumerate(unique)}
+    # Generate Confusion Matrix
+    for p, a in zip(predicted, actual):
+        matrix[imap[p]][imap[a]] += 1
+    return matrix
+
+def teste(gerarMatrizConfusao):    
+    nPrevisoesCorretas=0
+    msErrors=list()
+    valPrevistos = list()
+    valObtidos = list()
+    for entradas, saidaCorreta in zip(entradasTeste, saidasTeste):
+        entradas.shape += (1,)
+        saidaCorreta.shape += (1,)
+        # Forward propagation entrada -> oculta
+        pesosAtivados = forward_propagate(pesosE_O,entradas,biasesE_O)
+        # Forward propagation oculta -> saida
+        saidaObtida = forward_propagate(pesosO_S,pesosAtivados,biasesO_S)
+        # Calculo do erro quadrático medio das entradas dessa iteração
+        e = 1 / len(saidaObtida) * np.sum((saidaObtida - saidaCorreta) ** 2, axis=0)
+        msErrors.append(e)
+        #checa se previsto=obtido e adiciona ao contador de previsoes
+        valPrevistos.append(np.argmax(saidaCorreta))
+        valObtidos.append(np.argmax(saidaObtida))
+        nPrevisoesCorretas += int(np.argmax(saidaObtida) == np.argmax(saidaCorreta))
+    ultAcuTeste = round((nPrevisoesCorretas / entradasTeste.shape[0]) * 100, 2)
+    mseTeste.append(mean(msErrors))
+    if epocas%10==0 and not gerarMatrizConfusao:
+        print(f"Acurácia de teste: {ultAcuTeste}%")
+    if gerarMatrizConfusao:
+        cf = confusionmatrix(valObtidos,valPrevistos)
+
+        sn.heatmap(cf, annot=True)
+        plt.xlabel("Valores Obtidos")
+        plt.ylabel("Valores Previstos")
+        plt.show()
+
+while (ultAcuValid<97 or ultAcuTrei<99) and epocas<50:
+    epocas+=1
+    pesosE_O,biasesE_O,lastDeltaE_O,pesosO_S,biasesO_S,lastDeltaO_S = treinamento(
+        pesosE_O,biasesE_O,lastDeltaE_O,pesosO_S,biasesO_S,lastDeltaO_S)
+    validacao()
+    teste(False)
+teste(True)
+
+
 # Show results
 plt.plot(mseTrein)
 plt.plot(mseValid)
+plt.plot(mseTeste)
 plt.show()
 while True:
     index = int(input("Teste um número (0 - 5619): "))
@@ -120,12 +182,10 @@ while True:
     if index==-1:
         break;
     entradas.shape += (1,)
-    # Forward propagation input -> hidden
-    pesosPreAtivacao = biasesE_O + pesosE_O @ entradas.reshape(64, 1)
-    pesosAtivados = 1 / (1 + np.exp(-pesosPreAtivacao))
-    # Forward propagation hidden -> output
-    saidaPreAtivacao = biasesO_S + pesosO_S @ pesosAtivados
-    saidaObtida = 1 / (1 + np.exp(-saidaPreAtivacao))
+    # Forward propagation entrada -> oculta
+    pesosAtivados = forward_propagate(pesosE_O,entradas,biasesE_O)
+    # Forward propagation oculta -> saida
+    saidaObtida = forward_propagate(pesosO_S,pesosAtivados,biasesO_S)
 
-    print(f"Desejado: {saidaObtida.argmax()} :)")
-    print(arrSaidasDesejadas[index])
+    print(f"Desejado: {index}")
+    print(f"Obtido: {saidaObtida.argmax()}")
