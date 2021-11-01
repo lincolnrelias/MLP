@@ -1,4 +1,4 @@
-from math import floor
+from math import floor, sqrt
 import numpy as np
 from random import shuffle
 import sys
@@ -6,9 +6,9 @@ import sys
 
 
 #carregamento e formatação dos dados
-rawData = open("optdigitsNorm.dat", "r").read().splitlines()
+rawData = open(sys.argv[1], "r").read().splitlines()
 
-outputFile = open("saida.txt",'w')
+outputFile = open(sys.argv[2],'w')
 rawLabels =[]
 arrEntradas = list()
 arrSaidasDesejadas = list()
@@ -35,9 +35,10 @@ entradasTreinamento=[]
 entradasTeste=[]
 saidasTreinamento=[]
 saidasTeste=[]
+erros = list()
 #hiperparâmetros
 indiceAprendizado = 0.09
-epocas = 50
+epocas = 15
 alpha = .1
 neuroniosCO=25
 #parâmetros de controle
@@ -149,9 +150,19 @@ for i in range(10):
     lastDeltaO_S = 0
     erroMedio = sum(mseTeste)/50
     erroVerdadeiro = np.sqrt((erroMedio*(1-erroMedio))/5620)
+    erros.append(100-ultAcuTeste)
     outputFile.write(str(i+1)+";"+str(erroVerdadeiro)+"\n")
     mseTeste=list()
 
 #escrita de erros no arquivo de saida
+
+outputFile.write("Considerando a taxa de erro medio= "+str(round((sum(erros)/10),2))+chr(37)+" \n")
+outputFile.write("e levando em consideracao a quantidade de exemplos = 5620\n")
+e = sum(erros)/1000
+erroModelo=np.sqrt((e*(1-e))/5620)
+
+outputFile.write("Com 95"+chr(37)+" de confianca, temos o termo de desempenho do modelo entre "
++str(100-(round(e-1.96*erroModelo,3)*100))+chr(37)+" e "
++str(100-(round(e+1.96*erroModelo,3)*100))+chr(37))
 outputFile.close()
 print("Resultados salvos no arquivo de saida.")
